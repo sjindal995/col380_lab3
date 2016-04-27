@@ -24,33 +24,29 @@ int main(int argc, char** argv){
         int array[SIZE] = {0};
         for(int j=0; j<SIZE; j++){
             int tmp = 1 + rand()%100;
-            // cout << "i,j : " << i << "," << j << endl;
             if(world_rank == 0){
                 array[j] = tmp;
-                // cout << tmp << endl;
+                // cout << tmp << " ";
             }
         }
+        // if(world_rank == 0) cout << endl;
         MPI_Scatter(array, SIZE/world_size, MPI_INT, recv + i*SIZE/world_size, SIZE/world_size, MPI_INT, 0, MPI_COMM_WORLD);
     }
     mytime = MPI_Wtime() - mytime;
     if(world_rank == 0){
         cout << "timing: " << mytime << endl;
     }
+    // MPI_Barrier(MPI_COMM_WORLD);
+    // for(int i=0; i<world_size;i++){
+    //     if(i == world_rank){
+    //         cout << "w"<<i<<" : ";
+    //         for(int i=0;i<10*SIZE/world_size;i++){
+    //             cout << recv[i] << ", ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     MPI_Barrier(MPI_COMM_WORLD);
+    // }
     // Finalize the MPI environment.
     MPI_Finalize();
-    // if(world_rank == 0){
-    //     cout << "w0 : ";
-    //     for(int i=0;i<10*SIZE/world_size;i++){
-    //         cout << recv[i] << ", ";
-    //     }
-    //     cout << endl;
-    // }
-    // else{
-    //     sleep(5);
-    //     cout << "w1 : ";
-    //     for(int i=0;i<10*SIZE/world_size;i++){
-    //         cout << recv[i] << ", ";
-    //     }
-    //     cout << endl;
-    // }
 }

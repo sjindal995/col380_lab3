@@ -92,28 +92,38 @@ int main(int argc, char** argv){
     else sort(recv, recv+ (10*SIZE/world_size), greater<int>());
     // MPI_Barrier(MPI_COMM_WORLD);
     for(int i=0;i < log2(world_size);i++){
-        int first_dirxn = ((world_rank&(1<<i)) > 0);
+        int first_dirxn = ((world_rank&(1 << i)) > 0);
         int second_dirxn = (((world_rank^(1<<i))&(1<<i)) > 0);
         int dirxn = ((world_rank&(1<<(i+1))) > 0);
         for(int j=i; j>=0; j--){
             int comp = (world_rank^(1<<j));
             if(comp < world_rank){
-                MPI_Send(recv, 10*SIZE/world_size, MPI_INT, comp, 1, MPI_COMM_WORLD);
-                MPI_Recv(recv, 10*SIZE/world_size, MPI_INT, comp, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Request req_send;
+                MPI_Request req_recv;
+                MPI_Status st;
+                MPI_Isend(recv, 10*SIZE/world_size, MPI_INT, comp, 0, MPI_COMM_WORLD, &req_send);
+                MPI_Irecv(recv, 10*SIZE/world_size, MPI_INT, comp, 0, MPI_COMM_WORLD, &req_recv);
+                MPI_Wait(&req_send, &st);
+                MPI_Wait(&req_recv, &st);
             }
             else{
                 int *recved = (int*)malloc(2*10*(SIZE/world_size)*sizeof(int));
                 for(int k=0;k<10*SIZE/world_size;k++){
                     recved[k] = recv[k];
                 }
-                MPI_Recv(recved + 10*SIZE/world_size, 10*SIZE/world_size, MPI_INT, comp, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Request req_send;
+                MPI_Request req_recv;
+                MPI_Status st;
+                MPI_Irecv(recved + 10*SIZE/world_size, 10*SIZE/world_size, MPI_INT, comp, 0, MPI_COMM_WORLD, &req_recv);
+                MPI_Wait(&req_recv, &st);
                 // if(dirxn == 0) sort(recved, recved + (2*10*(SIZE/world_size)));
                 // else sort(recved, recved + (2*10*(SIZE/world_size)), greater<int>());
                 merge(recved, (2*10*(SIZE/world_size)), first_dirxn, second_dirxn, dirxn);
-                MPI_Send(recved + 10*SIZE/world_size, 10*SIZE/world_size, MPI_INT, comp, 0, MPI_COMM_WORLD);
+                MPI_Isend(recved + 10*SIZE/world_size, 10*SIZE/world_size, MPI_INT, comp, 0, MPI_COMM_WORLD, &req_send);
                 for(int k=0;k<10*SIZE/world_size;k++){
                     recv[k] = recved[k];
                 }
+                MPI_Wait(&req_send, &st);
             }
             first_dirxn = dirxn;
             second_dirxn = dirxn;
@@ -152,7 +162,8 @@ int main(int argc, char** argv){
 	//     	}
 	//     }
 	// }
-    // Finalize the MPI environment.
 
+	
+    // Finalize the MPI environment.
     MPI_Finalize();
 }

@@ -1,0 +1,47 @@
+Design Decisions:
+
+=>	To generate n keys in total, n/10 keys are generated at a time and are distributed among all the p processes. Distribution of n/10 numbers among p processes is done using MPI_Scatter call.
+=>	Initially each process has n/p keys to itself stored in an array. To sort all the n keys, n/p keys are first sorted locally by a process(serially). Then bitonic sort algorithm is apllied to sort the entire key set.
+=>	Merging of two already sorted arrays in done in O(n) where n is the size of an array.
+=>	Non-blocking send and receive calls are implemented using MPI_Isend and MPI_Irecv functions of MPI. MPI_Wait is used after MPI_Irecv before any computation is done involving the data to be received.
+
+
+SCALABILITY ARGUEMENTS:
+
+Time taken by best serial algorithm(T_s) = O(nlog(n))
+	Parallel Algorithm:
+		Time to locally sort available arrays by each process = O((n/p)*log(n/p))
+		At each level:
+			Worst Communication time at each level = (t_s + m*t_w)*log(p)
+				where m = size of message communicated (n/p)
+			So, communication time at each level = O(n/p*log(p))
+			Computation time at each level = O(n/p)
+			Total time at each level = O(n/p*log(p) + n/p)
+		#Levels = log(p)
+		Total time by parallel algorithm(T_p) = O(n/p*log(n/p) + n/p*log(p) + n/p*log(p)*log(p))
+		Efficiency	= T_s/(p*T_p) = (n*log(n))/(n*log(n/p) + n*log(p) + n*log(p)*log(p))
+					= log(n)/(log(n/p) + log(p) + log(p)*log(p))
+		k = log(n)/(log(n/p) + log(p) + log(p)*log(p))
+		=>	(1-k)/k = log(p)*log(p)/log(n);
+		=>	p = exp(sqrt(c*log(n)))
+So, on increasing number of keys(n), we can keep the effieciency constant by increasing the number of processors according to the above equation which is polynomial in n (exp(sqrt(log(n)))). Hence the program is scalable.
+
+
+COMMUNICATION OVERHEAD:
+
+In case of non-blocking communication, we can resume our program after MPI_Isend or MPI_Irecv(in case we don't require the data received after the MPI_Irecv call). Whereas in case of blocking communication, we cannot execute any code after MPI_Send or MPI_Recv irrespective of the code being relevant to the data to be received, leading to more communication overheads.
+
+
+EXECUTION TIMES:
+
+		Processes								Blocking(sec.) 						Non-Blocking(sec.)
+			1									0.143156							0.0595062
+			2									0.12474								0.0535634
+			4									0.0730784							0.0579996
+			8									0.576559							0.403155
+			16									1.25261								1.119996
+			32									2.2394								1.89676
+
+Observations:
+		(1)	On increasing number of processes, the execution times should decrease till the number of processes reaches number of cores in the machine (in this case = 4). In case of maximum performance, each processor is mapped to a process thereby providing maximum efficiency. On further increasing processes, switching needs to take place between the processors taking turns to run the processes thereby generating more overhead and increasing execution time.
+		(2) Execution time in case of non-blocking communication is less than in case of blocking communication, which is clearly visible on higher number of processors.
